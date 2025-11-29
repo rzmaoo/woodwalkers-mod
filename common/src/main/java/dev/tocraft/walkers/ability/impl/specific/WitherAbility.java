@@ -25,7 +25,7 @@ public class WitherAbility<T extends LivingEntity> extends ShapeAbility<T> {
     public void onUse(ServerPlayer player, T shape, ServerLevel world) {
         world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_SHOOT, SoundSource.NEUTRAL, 0.5F, 0.4F / (world.random.nextFloat() * 0.4F + 0.8F));
 
-        if (!world.isClientSide) {
+        if (!world.isClientSide()) {
             Vec3 lookDirection = player.getLookAngle();
             WitherSkull skull = new WitherSkull(world, player, new Vec3(lookDirection.x, lookDirection.y, lookDirection.z));
             skull.setPosRaw(player.getX(), player.getY() + 2, player.getZ());

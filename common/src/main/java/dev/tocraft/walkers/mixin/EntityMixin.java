@@ -42,14 +42,14 @@ public abstract class EntityMixin {
 
     @Inject(method = "removePassenger", at = @At("TAIL"))
     private void removePlayerVehicle(Entity passenger, CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayer vehicle && !vehicle.level().isClientSide) {
+        if ((Object) this instanceof ServerPlayer vehicle && !vehicle.level().isClientSide()) {
             vehicle.connection.send(new ClientboundSetPassengersPacket(vehicle));
         }
     }
 
     @Inject(method = "addPassenger", at = @At("TAIL"))
     private void addPlayerVehicle(Entity passenger, CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayer vehicle && !vehicle.level().isClientSide) {
+        if ((Object) this instanceof ServerPlayer vehicle && !vehicle.level().isClientSide()) {
             vehicle.connection.send(new ClientboundSetPassengersPacket(vehicle));
         }
     }

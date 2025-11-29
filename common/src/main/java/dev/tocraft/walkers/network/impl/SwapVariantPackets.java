@@ -24,38 +24,70 @@ public class SwapVariantPackets {
     public static void registerSwapVariantPacketHandler() {
         ModernNetworking.registerReceiver(ModernNetworking.Side.C2S, NetworkHandler.VARIANT_REQUEST,
                 (context, packet) -> {
+
                     if (!ApiLevel.getCurrentLevel().allowVariantsMenu) {
                         return;
                     }
 
                     int variantID = packet.getInt("variant_id").orElse(-1);
-                    context.getPlayer().getServer().execute(() -> {
+
+                    // ★ 重要：ServerPlayer -> ServerLevel -> Server
+                    context.getPlayer().level().getServer().execute(() -> {
+
                         if (Walkers.CONFIG.unlockEveryVariant) {
-                            ShapeType<?> currentShapeType = ShapeType.from(PlayerShape.getCurrentShape(context.getPlayer()));
 
-                            TypeProvider<?> typeProvider = TypeProviderRegistry.getProvider(currentShapeType.getEntityType());
-                            int range = typeProvider != null ? typeProvider.size(context.getPlayer().level()) : -1;
+                            ShapeType<?> currentShapeType =
+                                    ShapeType.from(PlayerShape.getCurrentShape(context.getPlayer()));
 
-                            // switch to special shape
-                            if (Walkers.hasSpecialShape(context.getPlayer().getUUID()) && EntityType.getKey(currentShapeType.getEntityType()).equals(ResourceLocation.parse("minecraft:wolf")) && variantID == range) {
-                                Entity created;
+                            TypeProvider<?> typeProvider =
+                                    TypeProviderRegistry.getProvider(currentShapeType.getEntityType());
+
+                            int range = typeProvider != null ?
+                                    typeProvider.size(context.getPlayer().level()) : -1;
+
+                            // special shape
+                            if (Walkers.hasSpecialShape(context.getPlayer().getUUID())
+                                    && EntityType.getKey(currentShapeType.getEntityType())
+                                    .equals(ResourceLocation.parse("minecraft:wolf"))
+                                    && variantID == range) {
+
                                 CompoundTag nbt = new CompoundTag();
-
                                 nbt.putBoolean("isSpecial", true);
                                 nbt.putString("id", EntityType.getKey(currentShapeType.getEntityType()).toString());
-                                created = EntityType.loadEntityRecursive(nbt, context.getPlayer().level(), EntitySpawnReason.LOAD, it -> it);
-                                PlayerShape.updateShapes((ServerPlayer) context.getPlayer(), (LivingEntity) created);
+
+                                Entity created = EntityType.loadEntityRecursive(
+                                        nbt,
+                                        context.getPlayer().level(),
+                                        EntitySpawnReason.LOAD,
+                                        it -> it
+                                );
+
+                                PlayerShape.updateShapes(
+                                        (ServerPlayer) context.getPlayer(),
+                                        (LivingEntity) created
+                                );
                             }
-                            // switch normally
+                            // normal variant switch
                             else {
-                                // DO NOT check if variant is already equipped; some variants are biome based!
                                 if (currentShapeType != null) {
-                                    ShapeType<?> newShapeType = ShapeType.from(currentShapeType.getEntityType(), variantID);
+                                    ShapeType<?> newShapeType =
+                                            ShapeType.from(currentShapeType.getEntityType(), variantID);
+
                                     if (newShapeType != null) {
-                                        if (PlayerShapeChanger.change2ndShape((ServerPlayer) context.getPlayer(), newShapeType) || !ApiLevel.getCurrentLevel().canUnlock) {
-                                            LivingEntity shape = newShapeType.create(context.getPlayer().level(), context.getPlayer());
+
+                                        if (PlayerShapeChanger.change2ndShape(
+                                                (ServerPlayer) context.getPlayer(),
+                                                newShapeType
+                                        ) || !ApiLevel.getCurrentLevel().canUnlock) {
+
+                                            LivingEntity shape =
+                                                    newShapeType.create(context.getPlayer().level(), context.getPlayer());
+
                                             if (shape != null) {
-                                                PlayerShape.updateShapes((ServerPlayer) context.getPlayer(), shape);
+                                                PlayerShape.updateShapes(
+                                                        (ServerPlayer) context.getPlayer(),
+                                                        shape
+                                                );
                                             }
                                         }
                                     }

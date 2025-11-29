@@ -10,7 +10,7 @@ public class FrogTickHandler implements WalkersTickHandler<Frog> {
 
     @Override
     public void tick(Player player, Frog frog) {
-        if (player.level().isClientSide) {
+        if (player.level().isClientSide()) {
             boolean isInWater = player.isInWater();
 
             boolean walk = player.onGround() && player.getDeltaMovement().horizontalDistanceSqr() > 1.0E-6 && !isInWater;

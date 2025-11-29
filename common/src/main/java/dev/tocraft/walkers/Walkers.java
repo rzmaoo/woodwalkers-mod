@@ -60,21 +60,19 @@ public class Walkers {
     public static final Logger LOGGER = LoggerFactory.getLogger(Walkers.class);
     public static final String MODID = "walkers";
     public static final WalkersConfig CONFIG = ConfigLoader.register(MODID);
-    @ApiStatus.Internal
-    public static final List<UUID> devs = new ArrayList<>() {
-        {
-            add(UUID.fromString("1f63e38e-4059-4a4f-b7c4-0fac4a48e744"));
-            add(UUID.fromString("494e1c8a-f733-43ed-8c1b-a2943fdc05f3"));
-            add(UUID.fromString("eb83f5a3-397a-4e14-80bc-914ff91890f0"));
-            add(UUID.fromString("17eae0aa-e445-489a-92ae-697d0a9d5731"));
-            add(UUID.fromString("53430a02-dbd1-4b5c-9984-4119e38fec79"));
-            add(UUID.fromString("50ee913f-a7d6-45ea-8d09-45fb3726aec1"));
-            add(UUID.fromString("74b6d9b3-c8c1-40db-ab82-ccc290d1aa03"));
-            add(UUID.fromString("d4a50582-c44e-4a0d-ab0c-9711e2cf4b29"));
-            add(UUID.fromString("ccddb138-0b29-493f-9d27-0f51ed3a0578"));
 
-        }
-    };
+    @ApiStatus.Internal
+    public static final List<UUID> devs = new ArrayList<>() {{
+        add(UUID.fromString("1f63e38e-4059-4a4f-b7c4-0fac4a48e744"));
+        add(UUID.fromString("494e1c8a-f733-43ed-8c1b-a2943fdc05f3"));
+        add(UUID.fromString("eb83f5a3-397a-4e14-80bc-914ff91890f0"));
+        add(UUID.fromString("17eae0aa-e445-489a-92ae-697d0a9d5731"));
+        add(UUID.fromString("53430a02-dbd1-4b5c-9984-4119e38fec79"));
+        add(UUID.fromString("50ee913f-a7d6-45ea-8d09-45fb3726aec1"));
+        add(UUID.fromString("74b6d9b3-c8c1-40db-ab82-ccc290d1aa03"));
+        add(UUID.fromString("d4a50582-c44e-4a0d-ab0c-9711e2cf4b29"));
+        add(UUID.fromString("ccddb138-0b29-493f-9d27-0f51ed3a0578"));
+    }};
 
     public void initialize() {
         Integrations.initIntegrations();
@@ -103,8 +101,8 @@ public class Walkers {
             Int2ObjectMap<Object> trackers = ((ThreadedAnvilChunkStorageAccessor) player.level()
                     .getChunkSource().chunkMap).getEntityMap();
             trackers.forEach((entityid, tracking) -> {
-                if (player.level().getEntity(entityid) instanceof ServerPlayer) {
-                    PlayerShape.sync((ServerPlayer) player.level().getEntity(entityid), player);
+                if (player.level().getEntity(entityid) instanceof ServerPlayer sp) {
+                    PlayerShape.sync(sp, player);
                 }
             });
         });
@@ -119,31 +117,29 @@ public class Walkers {
     }
 
     public static boolean hasFlyingPermissions(@NotNull ServerPlayer player, @NotNull GameType gameMode) {
-        if (gameMode.isCreative()) {
-            return true;
-        }
+        if (gameMode.isCreative()) return true;
 
         LivingEntity shape = PlayerShape.getCurrentShape(player);
 
-        if (shape != null && Walkers.CONFIG.enableFlight
-                && (TraitRegistry.has(shape, FlyingTrait.ID) || shape instanceof FlyingAnimal)) {
+        if (shape != null && Walkers.CONFIG.enableFlight &&
+                (TraitRegistry.has(shape, FlyingTrait.ID) || shape instanceof FlyingAnimal)) {
+
             List<String> requiredAdvancements = Walkers.CONFIG.advancementsRequiredForFlight;
 
-            // requires at least 1 advancement, check if player has them
             if (!requiredAdvancements.isEmpty()) {
+                var server = Optional.of(player.level().getServer());
 
                 boolean hasPermission = true;
-                for (String requiredAdvancement : requiredAdvancements) {
-                    AdvancementHolder advancement = Optional.ofNullable(player.getServer()).flatMap(s -> Optional.of(s.getAdvancements())).map(a -> a.get(ResourceLocation.parse(requiredAdvancement))).orElse(null);
-                    if (advancement != null) {
-                        AdvancementProgress progress = player.getAdvancements().getOrStartProgress(advancement);
 
-                        if (!progress.isDone()) {
-                            hasPermission = false;
-                        }
+                for (String id : requiredAdvancements) {
+                    AdvancementHolder adv = server.get().getAdvancements()
+                            .get(ResourceLocation.parse(id));
+                    if (adv != null) {
+                        AdvancementProgress progress =
+                                player.getAdvancements().getOrStartProgress(adv);
+                        if (!progress.isDone()) hasPermission = false;
                     }
                 }
-
                 return hasPermission;
             }
 

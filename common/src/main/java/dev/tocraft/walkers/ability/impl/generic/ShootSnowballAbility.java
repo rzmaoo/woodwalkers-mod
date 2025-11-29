@@ -26,7 +26,7 @@ public class ShootSnowballAbility<T extends LivingEntity> extends GenericShapeAb
     public void onUse(@NotNull ServerPlayer player, T shape, @NotNull ServerLevel world) {
         world.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SNOWBALL_THROW, SoundSource.NEUTRAL, 0.5F, 0.4F / (world.random.nextFloat() * 0.4F + 0.8F));
 
-        if (!world.isClientSide) {
+        if (!world.isClientSide()) {
             for (int i = 0; i < 10; i++) {
                 Snowball snowballEntity = EntityType.SNOWBALL.create(world, EntitySpawnReason.LOAD);
                 if (snowballEntity != null) {

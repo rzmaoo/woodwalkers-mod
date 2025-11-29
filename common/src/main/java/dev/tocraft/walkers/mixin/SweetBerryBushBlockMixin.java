@@ -24,7 +24,7 @@ public class SweetBerryBushBlockMixin {
             at = @At(value = "HEAD"),
             cancellable = true
     )
-    private void onDamage(BlockState blockState, Level level, BlockPos blockPos, Entity entity, InsideBlockEffectApplier insideBlockEffectApplier, CallbackInfo ci) {
+    private void onDamage(BlockState blockState, Level level, BlockPos blockPos, Entity entity, InsideBlockEffectApplier insideBlockEffectApplier, boolean bl, CallbackInfo ci) {
         if (entity instanceof Player player) {
             LivingEntity shape = PlayerShape.getCurrentShape(player);
 

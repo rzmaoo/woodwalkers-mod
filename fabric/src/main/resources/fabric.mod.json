@@ -30,7 +30,7 @@
     "walkers-fabric.mixins.json"
   ],
   "depends": {
-    "minecraft": ">=${minecraft_version}",
+    "minecraft": "*",
     "fabricloader": ">=0.8.7+build.201",
     "fabric-api": "*",
     "craftedcore": ">=${craftedcore_version}"

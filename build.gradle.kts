@@ -1,9 +1,26 @@
 plugins {
-    id("dev.tocraft.modmaster.root") version("single-1.10.1")
+    id("dev.architectury.loom") version "1.11-SNAPSHOT" apply false
+    id("architectury-plugin") version "3.4-SNAPSHOT" apply false
+    id("com.gradleup.shadow") version "9.2.2" apply false
+    id("net.darkhax.curseforgegradle") version "1.1.27" apply false
+    id("com.modrinth.minotaur") version "2.8.10" apply false
+
+    id("dev.tocraft.modmaster.root") version ("1.10.1")
 }
 
 allprojects {
     repositories {
+
+        ivy {
+            url = uri("${rootProject.projectDir}/libs")
+            patternLayout {
+                artifact("[artifact]-[revision].[ext]")
+            }
+            metadataSources {
+                artifact()
+            }
+        }
+
         mavenLocal()
         mavenLocal() // Check local repository first
 
@@ -29,7 +46,6 @@ allprojects {
         maven("https://maven.fabricmc.net/")
         maven("https://maven.architectury.dev/")
         maven("https://maven.minecraftforge.net/")
-        maven("https://maven.parchmentmc.org")
         maven("https://maven.tocraft.dev/public")
     }
 }

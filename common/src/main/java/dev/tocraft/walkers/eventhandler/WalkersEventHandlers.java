@@ -9,6 +9,7 @@ import dev.tocraft.walkers.api.PlayerShape;
 import dev.tocraft.walkers.traits.ShapeTrait;
 import dev.tocraft.walkers.traits.TraitRegistry;
 import dev.tocraft.walkers.traits.impl.*;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.InteractionResult;
@@ -98,7 +99,7 @@ public class WalkersEventHandlers {
 
     public static void registerHostilityUpdateHandler() {
         EntityEvents.INTERACT_WITH_PLAYER.register((player, entity, hand) -> {
-            if (!player.level().isClientSide && Walkers.CONFIG.playerCanTriggerHostiles && entity instanceof Monster) {
+            if (!player.level().isClientSide() && Walkers.CONFIG.playerCanTriggerHostiles && entity instanceof Monster) {
                 PlayerHostility.set(player, Walkers.CONFIG.hostilityTime);
             }
 
@@ -130,7 +131,7 @@ public class WalkersEventHandlers {
         EntityEvents.INTERACT_WITH_PLAYER.register((player, entity, hand) -> {
             if (entity instanceof Player playerToBeRidden) {
                 if (PlayerShape.getCurrentShape(playerToBeRidden) instanceof AbstractHorse) {
-                    player.startRiding(playerToBeRidden, true);
+                    player.startRiding(playerToBeRidden);
                 }
             }
             return InteractionResult.PASS;
@@ -142,14 +143,27 @@ public class WalkersEventHandlers {
             if (!entity.level().isClientSide()) {
                 if (entity instanceof Villager villager && damageSource.getEntity() instanceof Player player && PlayerShape.getCurrentShape(player) instanceof Zombie) {
                     if (!(player.level().getDifficulty() != Difficulty.HARD && player.getRandom().nextBoolean())) {
-                        villager.convertTo(EntityType.ZOMBIE_VILLAGER, ConversionParams.single(villager, false, false), zombieVillager -> {
-                            zombieVillager.finalizeSpawn((ServerLevelAccessor) player.level(), player.level().getCurrentDifficultyAt(zombieVillager.blockPosition()), EntitySpawnReason.CONVERSION, new Zombie.ZombieGroupData(false, true));
-                            zombieVillager.setTradeOffers(villager.getOffers());
-                            zombieVillager.setVillagerData(villager.getVillagerData());
-                            zombieVillager.setGossips(villager.getGossips().copy());
-                            zombieVillager.setVillagerXp(villager.getVillagerXp());
-                        });
+                        villager.convertTo(EntityType.ZOMBIE_VILLAGER,
+                                ConversionParams.single(villager, false, false),
+                                zombieVillager -> {
+
+                                    ServerLevel server = (ServerLevel) player.level();
+
+                                    zombieVillager.finalizeSpawn(
+                                            server,
+                                            server.getCurrentDifficultyAt(zombieVillager.blockPosition()),
+                                            EntitySpawnReason.CONVERSION,
+                                            new Zombie.ZombieGroupData(false, true)
+                                    );
+
+                                    zombieVillager.setTradeOffers(villager.getOffers());
+                                    zombieVillager.setVillagerData(villager.getVillagerData());
+                                    zombieVillager.setGossips(villager.getGossips().copy());
+                                    zombieVillager.setVillagerXp(villager.getVillagerXp());
+                                }
+                        );
                     }
+
                 }
             }
             return InteractionResult.PASS;

@@ -51,31 +51,44 @@ public class UnlockPackets {
 
             boolean validType = nbt.getBoolean("valid_type").orElse(false);
             if (validType) {
+
                 ResourceLocation typeId = ResourceLocation.parse(nbt.getString("type_id").orElseThrow());
-                EntityType<? extends LivingEntity> entityType = (EntityType<? extends LivingEntity>) BuiltInRegistries.ENTITY_TYPE.get(typeId).orElseThrow().value();
+                EntityType<? extends LivingEntity> entityType =
+                        (EntityType<? extends LivingEntity>) BuiltInRegistries.ENTITY_TYPE.get(typeId)
+                                .orElseThrow().value();
 
                 int variant = nbt.getInt("variant").orElse(-1);
 
-                context.getPlayer().getServer().execute(() -> {
+                // ★修复点：getServer() → level().getServer()
+                context.getPlayer().level().getServer().execute(() -> {
+
                     @Nullable
                     ShapeType<? extends LivingEntity> type = ShapeType.from(entityType, variant);
-                    if (type != null && !EntityBlacklist.isBlacklisted(type.getEntityType()) && (Walkers.CONFIG.unlockOverridesCurrentShape || ((PlayerDataProvider) context.getPlayer()).walkers$get2ndShape() == null)) {
-                        // set 2nd shape
-                        boolean result = PlayerShapeChanger.change2ndShape((ServerPlayer) context.getPlayer(), type);
-                        // update Player
+
+                    if (type != null &&
+                            !EntityBlacklist.isBlacklisted(type.getEntityType()) &&
+                            (Walkers.CONFIG.unlockOverridesCurrentShape ||
+                                    ((PlayerDataProvider) context.getPlayer()).walkers$get2ndShape() == null)) {
+
+                        boolean result =
+                                PlayerShapeChanger.change2ndShape((ServerPlayer) context.getPlayer(), type);
+
                         if (result) {
                             sendSyncPacket((ServerPlayer) context.getPlayer());
-                            PlayerShape.updateShapes((ServerPlayer) context.getPlayer(),
-                                    type.create(context.getPlayer().level(), context.getPlayer()));
+                            PlayerShape.updateShapes(
+                                    (ServerPlayer) context.getPlayer(),
+                                    type.create(context.getPlayer().level(), context.getPlayer())
+                            );
                         }
                     }
                 });
             } else {
-                // Swap back to player if server allows it
-                context.getPlayer().getServer().execute(() -> PlayerShape.updateShapes((ServerPlayer) context.getPlayer(), null));
+                // Swap back to player
+                context.getPlayer().level().getServer().execute(() ->
+                        PlayerShape.updateShapes((ServerPlayer) context.getPlayer(), null)
+                );
             }
 
-            // Refresh player dimensions
             context.getPlayer().refreshDimensions();
         });
     }
@@ -84,21 +97,20 @@ public class UnlockPackets {
      * Server synchronizes unlocked shape with the client
      */
     public static void sendSyncPacket(ServerPlayer player) {
-        // Serialize unlocked to tag
         CompoundTag compound = new CompoundTag();
         CompoundTag id = new CompoundTag();
+
         ShapeType<?> ndShape = ((PlayerDataProvider) player).walkers$get2ndShape();
         if (ndShape != null) {
             id = ndShape.writeCompound();
         }
         compound.put(UNLOCK_KEY, id);
 
-        // Send to client
         ModernNetworking.sendToPlayer(player, NetworkHandler.UNLOCK_SYNC, compound);
     }
 
     /**
-     * Client requests, that server may unlock a shape
+     * Client requests unlock
      */
     public static void sendUnlockRequest(@Nullable ShapeType<? extends LivingEntity> type) {
         CompoundTag packet = new CompoundTag();

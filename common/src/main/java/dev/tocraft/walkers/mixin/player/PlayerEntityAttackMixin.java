@@ -19,18 +19,19 @@ public abstract class PlayerEntityAttackMixin extends LivingEntity {
         super(entityType, world);
     }
 
-    @Inject(method = "attack", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;skipAttackInteraction(Lnet/minecraft/world/entity/Entity;)Z"), cancellable = true)
-    private void shapeAttack(Entity target, CallbackInfo ci) {
+    @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
+    private void walkers$shapeAttack(Entity target, CallbackInfo ci) {
         LivingEntity shape = PlayerShape.getCurrentShape((Player) (Object) this);
 
-        if (shape != null && level() instanceof ServerLevel serverLevel) {
-            if (getMainHandItem().isEmpty()) {
+        if (shape != null && this.level() instanceof ServerLevel serverLevel) {
+
+            // 只在空手时让形态代替攻击
+            if (this.getMainHandItem().isEmpty()) {
                 try {
                     shape.doHurtTarget(serverLevel, target);
-                    ci.cancel();
+                    ci.cancel(); // 阻止原版攻击逻辑
                 } catch (Exception ignored) {
-                    // FALL BACK TO DEFAULT BEHAVIOR.
-                    // Some mobs do not override, so it defaults to attack damage attribute, but the shape does not have any
+                    // 某些生物没有自定义攻击逻辑，忽略即可
                 }
             }
         }

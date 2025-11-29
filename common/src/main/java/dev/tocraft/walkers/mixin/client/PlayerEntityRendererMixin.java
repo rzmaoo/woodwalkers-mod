@@ -10,6 +10,7 @@ import dev.tocraft.walkers.api.model.EntityArms;
 import dev.tocraft.walkers.api.model.EntityUpdater;
 import dev.tocraft.walkers.api.model.EntityUpdaters;
 import dev.tocraft.walkers.impl.ShapeRenderStateProvider;
+import dev.tocraft.walkers.mixin.accessor.AvatarRendererAccessor;
 import dev.tocraft.walkers.mixin.accessor.EntityAccessor;
 import dev.tocraft.walkers.mixin.accessor.LivingEntityAccessor;
 import dev.tocraft.walkers.mixin.client.accessor.LimbAnimatorAccessor;
@@ -23,11 +24,13 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.*;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Tuple;
@@ -39,6 +42,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.Team;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -49,19 +53,24 @@ import java.util.Objects;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Environment(EnvType.CLIENT)
-@Mixin(value = PlayerRenderer.class, priority = 1001)
-public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<AbstractClientPlayer, PlayerRenderState, PlayerModel> {
+@Mixin(value = AvatarRenderer.class, priority = 1001)
+public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<AbstractClientPlayer, AvatarRenderState, PlayerModel> {
     private PlayerEntityRendererMixin(EntityRendererProvider.Context ctx, PlayerModel model, float shadowRadius) {
         super(ctx, model, shadowRadius);
     }
 
-    @Inject(method = "extractRenderState(Lnet/minecraft/client/player/AbstractClientPlayer;Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;F)V", at = @At("RETURN"))
-    private void onCreateState(AbstractClientPlayer player, PlayerRenderState state, float f, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void walkers$extractState(
+            Avatar player,
+            AvatarRenderState state,
+            float f,
+            CallbackInfo ci
+    ) {
         ((ShapeRenderStateProvider) state).walkers$setShape(() -> {
-            LivingEntity shape = PlayerShape.getCurrentShape(player);
-            if (!Minecraft.getInstance().options.getCameraType().isFirstPerson() || player.getVehicle() != Minecraft.getInstance().cameraEntity) {
+            LivingEntity shape = PlayerShape.getCurrentShape((Player) player);
+            if (!Minecraft.getInstance().options.getCameraType().isFirstPerson() || player.getVehicle() != Minecraft.getInstance().getCameraEntity()) {
                 if (shape != null) {
-                    walkers$updateShapeAttributes(player, shape);
+                    walkers$updateShapeAttributes((AbstractClientPlayer) player, shape);
                 }
                 return shape;
             }
@@ -70,7 +79,7 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
     }
 
     @Unique
-    private void walkers$updateShapeAttributes(@NotNull PlayerRenderState player, @NotNull EntityRenderState shape) {
+    private void walkers$updateShapeAttributes(@NotNull AvatarRenderState player, @NotNull EntityRenderState shape) {
         shape.y = player.y;
         shape.x = player.x;
         shape.z = player.z;
@@ -213,85 +222,136 @@ public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<Abs
     }
 
     @Override
-    public void render(PlayerRenderState state, PoseStack matrixStack, MultiBufferSource buffer, int packedLight) {
+    public void submit(AvatarRenderState state,
+                       PoseStack poseStack,
+                       SubmitNodeCollector collector,
+                       CameraRenderState cameraState)
+    {
         LivingEntity shape = ((ShapeRenderStateProvider) state).walkers$getShape();
 
-        // sync player data to shape
         if (shape != null && !state.isSpectator) {
-            if (!state.isInvisibleToPlayer && !state.isInvisible) {
-                EntityRenderer<LivingEntity, EntityRenderState> shapeRenderer = (EntityRenderer<LivingEntity, EntityRenderState>) Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(shape);
 
-                EntityRenderState shapeState = shapeRenderer.createRenderState(shape, packedLight);
+            if (!state.isInvisibleToPlayer && !state.isInvisible) {
+
+                EntityRenderer<Entity, EntityRenderState> shapeRenderer =
+                        (EntityRenderer<Entity, EntityRenderState>) Minecraft.getInstance()
+                                .getEntityRenderDispatcher()
+                                .getRenderer(shape);
+
+                EntityRenderState shapeState =
+                        shapeRenderer.createRenderState(shape, state.lightCoords);
+
                 walkers$updateShapeAttributes(state, shapeState);
 
-                shapeRenderer.render(shapeState, matrixStack, buffer, packedLight);
-
+                shapeRenderer.submit(shapeState, poseStack, collector, cameraState);
             }
 
             return;
         }
-        super.render(state, matrixStack, buffer, packedLight);
 
+        super.submit(state, poseStack, collector, cameraState);
     }
 
-    @Inject(method = "getRenderOffset(Lnet/minecraft/client/renderer/entity/state/PlayerRenderState;)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
-    private void modifyPositionOffset(PlayerRenderState state, CallbackInfoReturnable<Vec3> cir) {
+
+
+    @Inject(
+            method = "getRenderOffset",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void walkers$modifyOffset(AvatarRenderState state, CallbackInfoReturnable<Vec3> cir) {
+
         LivingEntity shape = ((ShapeRenderStateProvider) state).walkers$getShape();
-        if (shape != null) {
-            if (shape instanceof TamableAnimal) {
-                cir.setReturnValue(super.getRenderOffset(state));
-            }
+
+        if (shape != null && shape instanceof TamableAnimal) {
+            // 正确：调用父类的实现
+            Vec3 parent = ((AvatarRendererAccessor) this).callSuperGetRenderOffset(state);
+            cir.setReturnValue(parent);
         }
     }
 
-    @Inject(method = "renderHand", at = @At("HEAD"), cancellable = true)
-    private void onRenderArm(PoseStack matrices, MultiBufferSource vertexConsumers, int light, ResourceLocation resourceLocation, ModelPart arm, boolean bl, CallbackInfo ci) {
-        if (Minecraft.getInstance().cameraEntity instanceof Player player) {
-            LivingEntity shape = PlayerShape.getCurrentShape(player);
+    @Inject(
+            method = "renderHand(Lcom/mojang/blaze3d/vertex/PoseStack;" +
+                    "Lnet/minecraft/client/renderer/SubmitNodeCollector;" +
+                    "ILnet/minecraft/resources/ResourceLocation;" +
+                    "Lnet/minecraft/client/model/geom/ModelPart;Z)V",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void walkers$injectHand(PoseStack poseStack,
+                                    SubmitNodeCollector submit,
+                                    int light,
+                                    ResourceLocation vanillaTexture,
+                                    ModelPart arm,
+                                    boolean showSleeve,
+                                    CallbackInfo ci) {
 
-            // sync player data to shape
-            if (shape != null) {
-                EntityRenderer<LivingEntity, ?> renderer = (EntityRenderer<LivingEntity, ?>) Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(shape);
+        if (!(Minecraft.getInstance().getCameraEntity() instanceof Player player))
+            return;
 
-                if (renderer instanceof LivingEntityRenderer livingRenderer) {
-                    LivingEntityRenderState shapeState = ((LivingEntityRenderer<LivingEntity, ?, ?>) livingRenderer).createRenderState(shape, light);
-                    ResourceLocation texture = livingRenderer.getTextureLocation(shapeState);
-                    EntityModel model = livingRenderer.getModel();
+        LivingEntity shape = PlayerShape.getCurrentShape(player);
+        if (shape == null)
+            return;
 
-                    // re-assign arm & sleeve models
-                    arm = null;
+        EntityRenderer<LivingEntity, ?> renderer =
+                (EntityRenderer<LivingEntity, ?>) Minecraft.getInstance()
+                        .getEntityRenderDispatcher()
+                        .getRenderer(shape);
 
-                    if (model instanceof HumanoidModel) {
-                        if (player.getMainArm() == HumanoidArm.RIGHT) {
-                            arm = ((HumanoidModel<?>) model).rightArm;
-                        } else {
-                            arm = ((HumanoidModel<?>) model).leftArm;
-                        }
-                    } else {
-                        Tuple<ModelPart, ArmRenderingManipulator<EntityModel<EntityRenderState>>> pair = EntityArms.get(shape, model);
-                        if (pair != null) {
-                            arm = pair.getA();
-                            // mirror matrices with player is left-handed
-                            if (player.getMainArm() == HumanoidArm.LEFT) {
-                                matrices.mulPose(Maths.getDegreesQuaternion(Maths.POSITIVE_Y(), 180));
-                            }
-                            pair.getB().run(matrices, model);
-                            matrices.translate(0, -.35, .5);
-                        }
-                    }
+        if (!(renderer instanceof LivingEntityRenderer livingRenderer))
+            return;
 
-                    model.setupAnim(renderer.createRenderState(shape, light));
+        // create state
+        LivingEntityRenderState state = (LivingEntityRenderState) livingRenderer.createRenderState(shape, light);
 
+        // assign texture
+        ResourceLocation texture = livingRenderer.getTextureLocation(state);
 
-                    // render
-                    if (arm != null) {
-                        arm.xRot = 0.0F;
-                        arm.render(matrices, vertexConsumers.getBuffer(RenderType.entityTranslucent(texture)), light, OverlayTexture.NO_OVERLAY);
-                    }
+        // get model
+        EntityModel model = livingRenderer.getModel();
 
-                    ci.cancel();
+        // rebuild arm
+        ModelPart shapeArm = null;
+
+        if (model instanceof HumanoidModel<?> humanoid) {
+            shapeArm = (player.getMainArm() == HumanoidArm.RIGHT)
+                    ? humanoid.rightArm : humanoid.leftArm;
+
+        } else {
+            var pair = EntityArms.get(shape, model);
+            if (pair != null) {
+                shapeArm = (ModelPart) pair.getA();
+
+                if (player.getMainArm() == HumanoidArm.LEFT) {
+                    poseStack.mulPose(Maths.getDegreesQuaternion(Maths.POSITIVE_Y(), 180));
                 }
+                ArmRenderingManipulator<EntityModel<LivingEntityRenderState>> manip =
+                        (ArmRenderingManipulator<EntityModel<LivingEntityRenderState>>) pair.getB();
+
+                manip.run(poseStack, model);
+                poseStack.translate(0, -0.35, 0.5);
             }
         }
+
+        if (shapeArm == null)
+            return;
+
+        // setup animation
+        model.setupAnim(state);
+
+        // force arm pose
+        shapeArm.xRot = 0.0F;
+
+        // NEW submit pipeline
+        submit.submitModelPart(
+                shapeArm,
+                poseStack,
+                RenderType.entityTranslucent(texture),
+                light,
+                OverlayTexture.NO_OVERLAY,
+                null
+        );
+
+        ci.cancel();
     }
 }

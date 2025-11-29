@@ -13,9 +13,15 @@ tasks.withType<ProcessResources> {
 }
 
 dependencies {
-    modApi("dev.tocraft:craftedcore-fabric:${rootProject.properties["craftedcore_version"]}") {
-        exclude("net.fabricmc.fabric-api")
-        exclude("com.terraformersmc")
-        exclude("me.shedaniel.cloth")
+    mappings(loom.officialMojangMappings())
+
+    modApi(files("${rootDir}/libs/craftedcore-fabric-7.1.jar"))
+
+    modImplementation("net.fabricmc.fabric-api:fabric-api:0.136.0+1.21.11") {
+        isTransitive = false
     }
+}
+
+architectury {
+
 }

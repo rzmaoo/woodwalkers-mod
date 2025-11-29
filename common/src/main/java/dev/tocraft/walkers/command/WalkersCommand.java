@@ -23,6 +23,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -38,7 +39,8 @@ public class WalkersCommand {
 
     private static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext ctx) {
         LiteralCommandNode<CommandSourceStack> rootNode = Commands.literal("walkers")
-                .requires(source -> source.hasPermission(2)).build();
+                .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
+                .build();
 
         /*
          * Used to remove the second shape of the specified Player.

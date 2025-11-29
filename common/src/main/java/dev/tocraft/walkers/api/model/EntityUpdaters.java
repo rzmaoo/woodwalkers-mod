@@ -21,6 +21,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Parrot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.LinkedHashMap;
@@ -145,15 +146,18 @@ public class EntityUpdaters {
         EntityUpdaters.register(EntityType.CAT, (player, cat) -> cat.setInSittingPose(false));
 
         EntityUpdaters.register(EntityType.HOGLIN, (player, hoglin) -> {
-            hoglin.setImmuneToZombification(player.level().dimensionType().piglinSafe());
+            boolean piglinSafe = player.level().dimension() == Level.NETHER;
+            hoglin.setImmuneToZombification(piglinSafe);
         });
 
         EntityUpdaters.register(EntityType.PIGLIN, (player, piglin) -> {
-            piglin.setImmuneToZombification(player.level().dimensionType().piglinSafe());
+            boolean piglinSafe = player.level().dimension() == Level.NETHER;
+            piglin.setImmuneToZombification(piglinSafe);
         });
 
-        EntityUpdaters.register(EntityType.PIGLIN_BRUTE, (player, piglinBrute) -> {
-            piglinBrute.setImmuneToZombification(player.level().dimensionType().piglinSafe());
+        EntityUpdaters.register(EntityType.PIGLIN_BRUTE, (player, brute) -> {
+            boolean piglinSafe = player.level().dimension() == Level.NETHER;
+            brute.setImmuneToZombification(piglinSafe);
         });
     }
 }

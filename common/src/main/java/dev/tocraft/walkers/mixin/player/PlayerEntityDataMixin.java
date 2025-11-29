@@ -322,7 +322,7 @@ public abstract class PlayerEntityDataMixin extends LivingEntity implements Play
         }
 
         // sync with client
-        if (!player.level().isClientSide) {
+        if (!player.level().isClientSide()) {
             PlayerShape.sync((ServerPlayer) player);
 
             Int2ObjectMap<Object> trackers = ((ThreadedAnvilChunkStorageAccessor) ((ServerLevel) player.level())

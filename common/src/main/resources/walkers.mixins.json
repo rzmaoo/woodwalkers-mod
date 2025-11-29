@@ -80,7 +80,6 @@
     "client.MouseHandlerMixin",
     "client.PlayerEntityRendererMixin",
     "client.PlayerRenderStateMixin",
-    "client.ShadowMixin",
     "client.accessor.BlazeEntityModelAccessor",
     "client.accessor.EntityShadowAccessor",
     "client.accessor.IllagerEntityModelAccessor",
